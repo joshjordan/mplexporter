@@ -27,4 +27,5 @@ setup(name=NAME,
       download_url=DOWNLOAD_URL,
       license=LICENSE,
       packages=['mplexporter', 'mplexporter.renderers'],
+      install_requires=['pillow'],
      )

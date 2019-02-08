@@ -5,7 +5,9 @@ Utility Routines for Working with Matplotlib Objects
 import itertools
 import io
 import base64
-
+# begin PLM customziation
+from PIL import Image
+# end PLM customization
 import numpy as np
 
 import warnings
@@ -329,6 +331,30 @@ def get_legend_properties(ax, legend):
     visible = legend.get_visible()
     return {'handles': handles, 'labels': labels, 'visible': visible}
 
+# begin PLM customziation
+DESIRED_HEIGHT = None
+DESIRED_WIDTH = None
+
+def get_desired_image_width():
+    global DESIRED_WIDTH
+    if not DESIRED_WIDTH:
+        default_desired_width = 500.0
+        try:
+            DESIRED_WIDTH = float(os.getenv("MPLD3_DESIRED_IMAGE_WIDTH", default_desired_width))
+        except:
+            DESIRED_WIDTH = default_desired_width
+    return DESIRED_WIDTH
+
+def get_desired_image_height():
+    global DESIRED_HEIGHT
+    if not DESIRED_HEIGHT:
+        default_desired_height = 500.0
+        try:
+            DESIRED_HEIGHT = float(os.getenv("MPLD3_DESIRED_IMAGE_HEIGHT", default_desired_height))
+        except:
+            DESIRED_HEIGHT = default_desired_height
+    return DESIRED_HEIGHT
+# end PLM customziation
 
 def image_to_base64(image):
     """
@@ -352,6 +378,26 @@ def image_to_base64(image):
     lim = ax.axis()
     ax.axis(image.get_extent())
     image.write_png(binary_buffer)
+
+    # begin PLM customziation
+    # scale up images if necessary
+    # if the input data array is very small (e.g. 50x50 matrix of scatter plot points),
+    # image will be generated at 50x50 pixels, which is then blurred by interpolation
+    # when the browser scales it. instead, intentionally scale up with "pixelation"
+    binary_buffer.seek(0)
+    i = Image.open(binary_buffer)
+
+    # determine factor to scale image so that both min height and min width are met
+    height_scale_factor = get_desired_image_height() / i.height
+    width_scale_factor = get_desired_image_width() / i.width
+    scale_factor = max(height_scale_factor, width_scale_factor)
+    scale_factor = max(scale_factor, 1.0) #never shrink image
+
+    i = i.resize((int(i.width * scale_factor), int(i.height * scale_factor)))
+    binary_buffer = io.BytesIO()
+    i.save(binary_buffer, format='png')
+    # end PLM customization
+
     ax.axis(lim)
 
     binary_buffer.seek(0)
